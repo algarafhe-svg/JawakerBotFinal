@@ -13,11 +13,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. تحميل ملفات المستودع
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. فك ضغط المشروع
       - name: Extract Android project ZIP
         shell: bash
         run: |
@@ -26,7 +24,7 @@ jobs:
           ZIP=$(find . -maxdepth 1 -type f -name "*.zip" | head -n 1)
 
           if [ -z "$ZIP" ]; then
-            echo "ERROR: Project ZIP file not found"
+            echo "ERROR: ZIP file not found"
             exit 1
           fi
 
@@ -36,55 +34,43 @@ jobs:
           APP_DIR=$(find /tmp/project -type d -name app -print -quit)
 
           if [ -z "$APP_DIR" ]; then
-            echo "ERROR: app folder not found inside ZIP"
+            echo "ERROR: app folder not found"
             exit 1
           fi
 
           PROJECT_ROOT=$(dirname "$APP_DIR")
-
           cp -a "$PROJECT_ROOT"/. .
-
-          if [ ! -f settings.gradle ] && [ ! -f settings.gradle.kts ]; then
-            echo "ERROR: Gradle settings file not found"
-            exit 1
-          fi
 
           echo "Project extracted successfully"
 
-      # 3. إعداد Java
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      # 4. إعداد Android SDK وقبول التراخيص
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           accept-android-sdk-licenses: true
+          packages: 'platform-tools'
 
-      # 5. تثبيت أدوات Android المطلوبة
       - name: Install Android SDK packages
         run: |
-          sdkmanager "platform-tools" \
-            "platforms;android-35" \
-            "build-tools;35.0.0"
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
-      # 6. التأكد من وجود التطبيق
-      - name: Verify project files
+      - name: Verify project
         run: |
           test -d app
           test -f gradlew
-          echo "Android project files found"
+          test -f settings.gradle -o -f settings.gradle.kts
+          echo "Project verification successful"
 
-      # 7. بناء APK
-      - name: Build Debug APK
+      - name: Build APK
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug
 
-      # 8. رفع APK للتحميل
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
